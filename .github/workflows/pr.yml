@@ -3,13 +3,14 @@ on: pull_request
 jobs:
   code-quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
       - run: npm ci
+      - run: npm run build
       - run: npm run lint
       - run: npm run cover
-
-
+      - run: npm run format:check

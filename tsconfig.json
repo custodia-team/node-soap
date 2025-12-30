@@ -2,17 +2,15 @@
   "compileOnSave": true,
   "compilerOptions": {
     "target": "es2020",
-    "module": "commonjs",
+    "module": "NodeNext",
     "moduleResolution": "nodenext",
     "outDir": "lib",
+    "rootDir": "src",
     "sourceMap": true,
     "declaration": true,
-    "stripInternal": true
+    "stripInternal": true,
+    "skipLibCheck": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

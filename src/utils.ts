@@ -1,6 +1,6 @@
-
 import * as crypto from 'crypto';
-import { IMTOMAttachments } from './types';
+import { IMTOMAttachments, IWSDLCache } from './types';
+import { WSDL } from './wsdl';
 
 export function passwordDigest(nonce: string, created: string, password: string): string {
   // digest = base64 ( sha1 ( nonce + created + password ) )
@@ -25,7 +25,9 @@ export const TNS_PREFIX = '__tns__'; // Prefix for targetNamespace
  */
 export function findPrefix(xmlnsMapping, nsURI) {
   for (const n in xmlnsMapping) {
-    if (n === TNS_PREFIX) { continue; }
+    if (n === TNS_PREFIX) {
+      continue;
+    }
     if (xmlnsMapping[n] === nsURI) {
       return n;
     }
@@ -40,7 +42,7 @@ export function splitQName<T>(nsName: T) {
     };
   }
 
-  const [topLevelName] = nsName.split('|');
+  const [topLevelName] = nsName.split('|', 1);
 
   const prefixOffset = topLevelName.indexOf(':');
 
@@ -51,16 +53,11 @@ export function splitQName<T>(nsName: T) {
 }
 
 export function xmlEscape(obj) {
-  if (typeof (obj) === 'string') {
+  if (typeof obj === 'string') {
     if (obj.substr(0, 9) === '<![CDATA[' && obj.substr(-3) === ']]>') {
       return obj;
     }
-    return obj
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+    return obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   }
 
   return obj;
@@ -113,3 +110,29 @@ export function parseMTOMResp(payload: Buffer, boundary: string, callback: (err?
     })
     .catch(callback);
 }
+
+class DefaultWSDLCache implements IWSDLCache {
+  private cache: {
+    [key: string]: WSDL;
+  };
+  constructor() {
+    this.cache = {};
+  }
+
+  public has(key: string): boolean {
+    return !!this.cache[key];
+  }
+
+  public get(key: string): WSDL {
+    return this.cache[key];
+  }
+
+  public set(key: string, wsdl: WSDL) {
+    this.cache[key] = wsdl;
+  }
+
+  public clear() {
+    this.cache = {};
+  }
+}
+export const wsdlCacheSingleton = new DefaultWSDLCache();

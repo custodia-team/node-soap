@@ -5,17 +5,17 @@
 
 import * as req from 'axios';
 import { NtlmClient } from 'axios-ntlm';
-import * as debugBuilder from 'debug';
+import { randomUUID } from 'crypto';
+import debugBuilder from 'debug';
 import { ReadStream } from 'fs';
 import * as url from 'url';
-import { v4 as uuidv4 } from 'uuid';
-import MIMEType = require('whatwg-mimetype');
+import MIMEType from 'whatwg-mimetype';
 import { gzipSync } from 'zlib';
 import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
 import { parseMTOMResp } from './utils';
 
 const debug = debugBuilder('node-soap');
-const VERSION = require('../package.json').version;
+import { version } from '../package.json';
 
 export interface IAttachment {
   name: string;
@@ -32,14 +32,13 @@ export interface IAttachment {
  * @constructor
  */
 export class HttpClient implements IHttpClient {
-
   private _request: req.AxiosInstance;
   private options: IOptions;
 
   constructor(options?: IOptions) {
     options = options || {};
     this.options = options;
-    this._request = options.request || req.default.create();
+    this._request = options.request || req.create();
   }
 
   /**
@@ -57,11 +56,11 @@ export class HttpClient implements IHttpClient {
     const host = curl.hostname;
     const port = parseInt(curl.port, 10);
     const headers: IHeaders = {
-      'User-Agent': 'node-soap/' + VERSION,
+      'User-Agent': 'node-soap/' + version,
       'Accept': 'text/html,application/xhtml+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
       'Accept-Encoding': 'none',
       'Accept-Charset': 'utf-8',
-      'Connection': exoptions.forever ? 'keep-alive' : 'close',
+      ...(exoptions.forever && { Connection: 'keep-alive' }),
       'Host': host + (isNaN(port) ? '' : ':' + port),
     };
     const mergeOptions = ['headers'];
@@ -89,7 +88,7 @@ export class HttpClient implements IHttpClient {
       options.validateStatus = null;
     }
     if (exoptions.forceMTOM || attachments.length > 0) {
-      const start = uuidv4();
+      const start = randomUUID();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
         for (const ct of headers['Content-Type'].split('; ')) {
@@ -98,16 +97,18 @@ export class HttpClient implements IHttpClient {
           }
         }
       }
-      const boundary = uuidv4();
-      headers['Content-Type'] = 'multipart/related; type="application/xop+xml"; start="<' + start + '>"; type="text/xml"; boundary=' + boundary;
+      const boundary = randomUUID();
+      headers['Content-Type'] = 'multipart/related; type="application/xop+xml"; start="<' + start + '>"; start-info="text/xml"; boundary=' + boundary;
       if (action) {
         headers['Content-Type'] = headers['Content-Type'] + '; ' + action;
       }
-      const multipart: any[] = [{
-        'Content-Type': 'application/xop+xml; charset=UTF-8; type="text/xml"',
-        'Content-ID': '<' + start + '>',
-        'body': data,
-      }];
+      const multipart: any[] = [
+        {
+          'Content-Type': 'application/xop+xml; charset=UTF-8; type="text/xml"',
+          'Content-ID': '<' + start + '>',
+          'body': data,
+        },
+      ];
 
       attachments.forEach((attachment) => {
         multipart.push({
@@ -118,21 +119,19 @@ export class HttpClient implements IHttpClient {
           'body': attachment.body,
         });
       });
-      options.data = `--${boundary}\r\n`;
+      options.data = [Buffer.from(`--${boundary}\r\n`)];
 
       let multipartCount = 0;
       multipart.forEach((part) => {
         Object.keys(part).forEach((key) => {
           if (key !== 'body') {
-            options.data += `${key}: ${part[key]}\r\n`;
+            options.data.push(Buffer.from(`${key}: ${part[key]}\r\n`));
           }
         });
-        options.data += '\r\n';
-        options.data += `${part.body}\r\n--${boundary}${
-          multipartCount === multipart.length - 1 ? '--' : ''
-        }\r\n`;
+        options.data.push(Buffer.from('\r\n'), Buffer.from(part.body), Buffer.from(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
         multipartCount++;
       });
+      options.data = Buffer.concat(options.data);
     } else {
       options.data = data;
     }
@@ -177,14 +176,7 @@ export class HttpClient implements IHttpClient {
     return body;
   }
 
-  public request(
-    rurl: string,
-    data: any,
-    callback: (error: any, res?: any, body?: any) => any,
-    exheaders?: IHeaders,
-    exoptions?: IExOptions,
-    caller?,
-  ) {
+  public request(rurl: string, data: any, callback: (error: any, res?: any, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions) {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     let req: req.AxiosPromise;
     if (exoptions !== undefined && exoptions.ntlm) {
@@ -202,51 +194,54 @@ export class HttpClient implements IHttpClient {
       }
       req = this._request(options);
     }
+    //eslint-disable-next-line @typescript-eslint/no-this-alias
     const _this = this;
-    req.then((res) => {
+    req.then(
+      (res) => {
+        const handleBody = (body?: string) => {
+          res.data = this.handleResponse(req, res, body || res.data);
+          callback(null, res, res.data);
+          return res;
+        };
 
-      const handleBody = (body?: string) => {
-        res.data = this.handleResponse(req, res, body || res.data);
-        callback(null, res, res.data);
-        return res;
-      };
-
-      if (_this.options.parseReponseAttachments) {
-        const isMultipartResp = res.headers['content-type'] && res.headers['content-type'].toLowerCase().indexOf('multipart/related') > -1;
-        if (isMultipartResp) {
-          let boundary;
-          const parsedContentType = MIMEType.parse(res.headers['content-type']);
-          if (parsedContentType) {
-            boundary = parsedContentType.parameters.get('boundary');
-          }
-          if (!boundary) {
-            return callback(new Error('Missing boundary from content-type'));
-          }
-          return parseMTOMResp(res.data, boundary, (err, multipartResponse) => {
-            if (err) {
-              return callback(err);
+        if (_this.options.parseReponseAttachments) {
+          const isMultipartResp = res.headers['content-type'] && res.headers['content-type'].toLowerCase().indexOf('multipart/related') > -1;
+          if (isMultipartResp) {
+            let boundary;
+            const parsedContentType = MIMEType.parse(res.headers['content-type']);
+            if (parsedContentType) {
+              boundary = parsedContentType.parameters.get('boundary');
             }
+            if (!boundary) {
+              return callback(new Error('Missing boundary from content-type'));
+            }
+            return parseMTOMResp(res.data, boundary, (err, multipartResponse) => {
+              if (err) {
+                return callback(err);
+              }
               // first part is the soap response
-            const firstPart = multipartResponse.parts.shift();
-            if (!firstPart || !firstPart.body) {
-              return callback(new Error('Cannot parse multipart response'));
-            }
-            (res as any).mtomResponseAttachments = multipartResponse;
-            return handleBody(firstPart.body.toString('utf8'));
-          });
+              const firstPart = multipartResponse.parts.shift();
+              if (!firstPart || !firstPart.body) {
+                return callback(new Error('Cannot parse multipart response'));
+              }
+              (res as any).mtomResponseAttachments = multipartResponse;
+              return handleBody(firstPart.body.toString(_this.options.encoding || 'utf8'));
+            });
+          } else {
+            return handleBody(res.data.toString(_this.options.encoding || 'utf8'));
+          }
         } else {
-          return handleBody(res.data.toString('utf8'));
+          return handleBody();
         }
-      } else {
-        return handleBody();
-      }
-    }, (err) => {
-      return callback(err);
-    });
+      },
+      (err) => {
+        return callback(err);
+      },
+    );
     return req;
   }
 
-  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): req.AxiosPromise<ReadStream> {
+  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): req.AxiosPromise<ReadStream> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     options.responseType = 'stream';
     const req = this._request(options).then((res) => {
