@@ -1,3 +1,52 @@
+# 1.7.1 / 2026-02-18
+
+- [FIX] Rebuild to update stale references
+
+# 1.7.0 / 2026-02-18
+
+- [ENHANCEMENT] Replace get-stream and strip-bom with local impl (#1447)
+- [ENHANCEMENT] Remove lodash dependency (#1444)
+- [MAINTENANCE] Bump typescript-eslint from 8.53.1 to 8.54.0 (#1445)
+
+# 1.6.5 / 2026-02-13
+
+- [ENHANCEMENT] honor httpAgent/httpsAgent when setting ntlm (#1336)
+- [FIX] Handle undefined toXml() (#1435)
+- [MAINTENANCE] Bump axios to 1.13.5 (#1442)
+- [MAINTENANCE] Bump typescript-eslint to 8.53.1 (#1439)
+- [MAINTENANCE] Bump prettier to 3.8.1 (#1437)
+- [MAINTENANCE] Bump brace-expansion to 5.0.1 (#1440)
+- [MAINTENANCE] Bump `strip-bom` and `get-stream` (#1394)
+
+# 1.6.4 / 2026-01-28
+
+- [ENHANCEMENT] Improve request handling when there is no explicit Body (#1424)
+- [MAINTENANCE] Bump typescript-eslint from 8.51.0 to 8.52.0 (#1429)
+- [MAINTENANCE] Bump @types/lodash from 4.17.21 to 4.17.23 (#1428)
+- [MAINTENANCE] Bump sax from 1.4.3 to 1.4.4 (#1427)
+
+# 1.6.3 / 2026-01-11
+
+- [MAINTENANCE] Bump qs to 6.14.1 and body-parser to 2.2.2 (#1423)
+- [MAINTENANCE] Bump serve-static from 2.2.0 to 2.2.1 (#1421)
+- [MAINTENANCE] Bump sinon from 21.0.0 to 21.0.1 (#1420)
+- [MAINTENANCE] Bump typescript-eslint from 8.49.0 to 8.50.0 (#1419)
+
+# 1.6.2 / 2026-01-02
+
+- [FIX] Align deserialization of restricted strings with standard strings (#1413)
+- [MAINTENANCE] Bump typescript-eslint from 8.48.1 to 8.49.0 (#1416)
+- [MAINTENANCE] Bump @eslint/js from 9.39.1 to 9.39.2 (#1415)
+- [MAINTENANCE] Bump eslint from 9.39.1 to 9.39.2 (#1414)
+- [MAINTENANCE] Run MR pipeline against supported node.js runtimes 20, 22 and 24 (#1417)
+- [MAINTENANCE] Bump express from 5.1.0 to 5.2.1 (#1411)
+- [MAINTENANCE] Bump finalhandler from 2.1.0 to 2.1.1 (#1409)
+- [MAINTENANCE] Bump prettier from 3.7.3 to 3.7.4 (#1408)
+- [MAINTENANCE] Bump actions/checkout from 5 to 6 (#1407)
+- [MAINTENANCE] Bump body-parser from 2.2.0 to 2.2.1 (#1403)
+- [MAINTENANCE] Bump min node.js version to 20.9.0 (#1399)
+- [MAINTENANCE] Bump @types/lodash from 4.17.20 to 4.17.21 (#1402)
+
 # 1.6.1 / 2025-12-04
 
 - [FIX] Use namespace in caching to avoid conflicts between schemas in complex types with the same name (#1397)
